@@ -15,9 +15,9 @@ DATA_FILE = BASE_DIR / "data.json"
 WEB_DIR = BASE_DIR / "web"
 
 CAMERA_POSITIONS = {
-    "webcam1": {"x": 0, "z": 0},
-    "webcam2": {"x": 0, "z": 1},
-    "webcam3": {"x": 3, "z": -1},
+    "webcam1": {"x": -3.2, "y": 0.45, "z": -1.4},
+    "webcam2": {"x": 0, "y": 0.0, "z": 1},
+    "webcam3": {"x": 3, "y": 0.0, "z": -1},
 }
 
 app = FastAPI(title="A-Frame Heatmap API", version="1.0.0")
@@ -56,13 +56,14 @@ def _normalizar_heatmap(registros: list[dict]) -> list[dict]:
 
     pontos = []
     for indice, (camera_id, registro) in enumerate(registros_por_camera.items()):
-        posicao = CAMERA_POSITIONS.get(camera_id, {"x": indice * 2 - 2, "z": 0})
+        posicao = CAMERA_POSITIONS.get(camera_id, {"x": indice * 2 - 2, "y": 0.0, "z": 0})
         pontos.append(
             {
                 "id": camera_id,
                 "camera_id": camera_id,
                 "timestamp": registro.get("timestamp"),
                 "x": posicao["x"],
+                "y": posicao.get("y", 0.0),
                 "z": posicao["z"],
                 "pessoas": int(registro.get("total") or registro.get("in") or 0),
             }
