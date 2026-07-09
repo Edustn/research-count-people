@@ -1,0 +1,8 @@
+:8080 {
+    root * /Users/klubi/Documents/tetes_a_frame
+
+    @home path /
+    rewrite @home /web/index.html
+
+    file_server
+}

@@ -1,0 +1,159 @@
+<!-- <!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ambiente 3D</title>
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  </head>
+  <body>
+    <a-scene background="color: #dfe7ee">
+      <a-assets>
+        <a-asset-item id="ambiente-obj" src="/enviroment/3DModel.obj"></a-asset-item>
+        <a-asset-item id="ambiente-mtl" src="/enviroment/3DModel.mtl"></a-asset-item>
+      </a-assets>
+
+      <a-entity position="0 1.6 4">
+        <a-camera wasd-controls="acceleration: 30" look-controls="pointerLockEnabled: true"></a-camera>
+      </a-entity>
+
+      <a-entity light="type: ambient; intensity: 1"></a-entity>
+      <a-entity light="type: directional; intensity: 1.2" position="2 4 3"></a-entity>
+
+      <a-entity
+        obj-model="obj: #ambiente-obj; mtl: #ambiente-mtl"
+        position="0 0 -4"
+        rotation="0 180 0"
+        scale="4 4 4"
+      ></a-entity>
+
+      <a-sky color="#ececec"></a-sky>
+    </a-scene>
+  </body>
+</html> -->
+
+
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meu Ambiente VR - Panorama</title>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+</head>
+
+<body>
+
+  <a-scene>
+    <a-assets>
+      <img id="panorama-quarto" src="0Romm.jpg" alt="Panorama do ambiente">
+    </a-assets>
+
+    <a-cylinder
+      id="panorama-cylinder"
+      src="#panorama-quarto"
+      radius="65"
+      height="150"
+      position="0 2.4 0"
+      open-ended="true"
+      rotation="0 -90 0"
+      side="double"
+      material="repeat: 1 1">
+    </a-cylinder>
+
+    <a-entity id="heatmap-layer"></a-entity>
+
+    <a-sky color="#111"></a-sky>
+    <a-entity camera="fov: 80" look-controls position="0 2.4 0" rotation="0 0 0"></a-entity>
+
+  </a-scene>
+
+  <script>
+    const CAMINHO_HEATMAP = '/api/heatmap';
+    const ALTURA_HEATMAP = -0.25;
+    const INTERVALO_ATUALIZACAO_MS = 2000;
+
+    async function carregarDadosHeatmap() {
+      try {
+        const resposta = await fetch(`${CAMINHO_HEATMAP}?t=${Date.now()}`);
+        if (!resposta.ok) {
+          throw new Error(`Falha ao carregar o heatmap: HTTP ${resposta.status}`);
+        }
+
+        const payload = await resposta.json();
+        const dados = normalizarDadosHeatmap(payload);
+        criarHeatmap(dados.points);
+      } catch (erro) {
+        console.error('Nao foi possivel carregar os dados do heatmap.', erro);
+      }
+    }
+
+    function normalizarDadosHeatmap(payload) {
+      const pontos = Array.isArray(payload?.points) ? payload.points : [];
+      return {
+        updatedAt: payload?.updated_at || null,
+        points: pontos.map((ponto) => ({
+          id: ponto.id || ponto.camera_id || 'camera',
+          x: Number(ponto.x) || 0,
+          z: Number(ponto.z) || 0,
+          pessoas: Number(ponto.pessoas) || 0
+        }))
+      };
+    }
+
+    function criarHeatmap(pontos) {
+      const camadaHeatmap = document.getElementById('heatmap-layer');
+      camadaHeatmap.innerHTML = '';
+
+      pontos.forEach((ponto) => {
+        const pessoas = Math.max(0, Math.min(100, Number(ponto.pessoas) || 0));
+        const posicaoChao = obterPosicaoChao(ponto);
+        const cor = obterCorPorDensidade(pessoas);
+        const circulo = document.createElement('a-circle');
+
+        circulo.setAttribute('position', `${posicaoChao.x} ${posicaoChao.y} ${posicaoChao.z}`);
+        circulo.setAttribute('rotation', '-90 0 0');
+        circulo.setAttribute('radius', obterRaioPorDensidade(pessoas));
+        circulo.setAttribute(
+          'material',
+          `shader: flat; color: ${cor}; emissive: ${cor}; transparent: true; opacity: ${obterOpacidadePorDensidade(pessoas)}; side: double; depthTest: false; depthWrite: false`
+        );
+        circulo.setAttribute('data-id', ponto.id || 'sem-id');
+        circulo.setAttribute('title', `${ponto.id || 'ponto'}: ${pessoas} pessoas`);
+
+        camadaHeatmap.appendChild(circulo);
+      });
+    }
+
+    function obterPosicaoChao(ponto) {
+      return {
+        x: Number(ponto.x) || 0,
+        y: ALTURA_HEATMAP,
+        z: Number(ponto.z) || 0
+      };
+    }
+
+    function obterCorPorDensidade(pessoas) {
+      if (pessoas <= 20) return '#ffc1c1';
+      if (pessoas <= 40) return '#ff8a8a';
+      if (pessoas <= 60) return '#ff5252';
+      if (pessoas <= 80) return '#e53935';
+      return '#b71c1c';
+    }
+
+    function obterRaioPorDensidade(pessoas) {
+      return 0.18 + (Math.max(0, Math.min(100, pessoas)) / 100) * 0.55;
+    }
+
+    function obterOpacidadePorDensidade(pessoas) {
+      return 0.08 + (Math.max(0, Math.min(100, pessoas)) / 100) * 0.2;
+    }
+
+    carregarDadosHeatmap();
+    setInterval(carregarDadosHeatmap, INTERVALO_ATUALIZACAO_MS);
+  </script>
+
+</body>
+
+</html>
